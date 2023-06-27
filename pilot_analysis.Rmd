@@ -1,0 +1,114 @@
+---
+title: "ManyNumbers Pilot Analysis"
+author: "Mike Frank"
+date: "2023-06-27"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# Introduction
+
+This is a brief analysis of pilot data for Foundation 1 of the ManyNumbers grant, dealing with the development of exact number knowledge and the count list. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(viridis)
+```
+
+Read in pilot data. 
+
+```{r}
+d <- readxl::read_xlsx(here("data","Lafayette Many Numbers pilot data.xlsx")) |>
+  janitor::clean_names()
+```
+
+This data file provides "give a number" and highest count data" for 35 children. 
+
+For the grant, we're interested in Aim 1 right now:
+
+> Aim 1: Provide a well-powered test of whether early number word meanings are supported by the AMS or OTS. Aim 2: Test whether number word learning is associated with changes in the acuity of children’s AMS, as predicted if the AMS
+supports early number word learning. Aim 3: Characterize variability in number word learning and AMS acuity across labs, countries, language groups, and socioeconomic statuses, to develop cross-cultural norms in number word learning and AMS development. Aim 4: Facilitate Exploratory collaborations that supplement these Foundational questions with additional culturally relevant tests of language, cognition, and math skills to expand the diversity and reach of research on early number word learning.
+
+From our meeting May 24th, we discussed some Aim 1 questions:
+
+> Question 1a. Are there knower-level stages above four-knowers (e.g., six-knowers)? 
+
+> Question 1b. Do children who have not yet learned the cardinal principle have noisy knowledge of large number word meanings, compatible with the AMS? 
+
+
+# Descriptives
+
+Here's the age distribution for the data.
+
+```{r}
+ggplot(d, aes(x = age_in_months)) + 
+  geom_histogram(binwidth = 6)
+```
+
+First thing we can do is look at the relation between give-N and highest count.
+
+```{r}
+d_summary <- d |>
+  select(age_in_months, gn_knower_level_49, gn_knower_level_50, highest_count) |>
+  rename(gn_level_fine = gn_knower_level_49,
+         gn_level_coarse = gn_knower_level_50) |>
+  mutate(highest_count = as.numeric(ifelse(highest_count == "NR", NA, highest_count)), 
+         gn_level_coarse = fct_relevel(gn_level_coarse, 
+                                     c("cardinal","subset","pre-numeral")), 
+         gn_level_fine = fct_relevel(gn_level_fine, 
+                                     c("Cardinal principle knower",
+                                       "Subset (6 knower)",
+                                       "Subset (5 knower)",
+                                       "Subset (4 knower)",
+                                       "Subset (3 knower)",
+                                       "Subset (2 knower)",
+                                       "Subset (1 knower)",
+                                       "Pre-numeral")))
+```
+
+Let's look at this for coarse categories. 
+
+```{r}
+ggplot(d_summary, aes(x = gn_level_coarse, y = highest_count, col = age_in_months/12)) + 
+  geom_jitter(width = .1) + 
+  stat_summary(fun.data = "mean_cl") +
+  xlab("Knower Level") + 
+  ylab("Highest Count") + 
+  scale_color_viridis(name = "Age (years)") + 
+  coord_flip() + 
+  theme_bw()
+```
+
+Now break down for finer categories.
+
+```{r}
+ggplot(d_summary, aes(x = gn_level_fine, y = highest_count, col = age_in_months/12)) + 
+  geom_jitter(width = .1) + 
+  stat_summary(fun.data = "mean_cl") +
+  xlab("Knower Level") + 
+  ylab("Highest Count") + 
+  scale_color_viridis(name = "Age (years)") + 
+  coord_flip() + 
+  theme_bw()
+```
+
+In both analyses we see a strong relationship between highest count and knower level. 
+
+
+# Question 1a
+
+> Predictions. On the OTS account, early number words are mapped to representations of small sets up to 3-4 items. On this capacity limit hypothesis, children should be unable to map number words like 5 or 6 to specific numerosities prior to learning to accurately construct sets via counting. Thus, the OTS account predicts that knower levels above 4 should be no more frequent than predicted by chance. In contrast, the AMS account predicts that early number word meanings are mapped to approximate magnitudes which have no upper limit; some children may be able to reliably map number words like 5 and 6 to numerosities prior to learning the cardinal principle. Therefore, the AMS account predicts the presence of children with higher knower levels at higher-than-chance levels.
+
+> Tests. We will compare the frequencies of each knower level to simulations that model their frequency as predicted by chance.
+
+
+# Question 1b
+
+> Predictions. As just noted, unlike the OTS account, the AMS account predicts that children should have noisy knowledge for larger numbers (5-10), because they are capable of mapping number word meanings to noisy AMS representations for all set sizes up to 10. In addition to predicting the existence of knower levels greater than 3-4, this also predicts that when children fail to meet criterion for higher knower levels (i.e., correct responses on 2⁄3 trials) they should make estimates that increase in size as the number requested increases. This is predicted by the AMS but not the OTS.
+
+> Tests: We will compare the accuracy of children’s responses in the large number range (5-10) to chance. We will also test children’s slope of responses in comparison to zero. Accuracy greater than chance, and positive slopes (i.e., giving a larger number of items when asked for ten than when asked for five) will be taken as evidence for noisy knowledge of large number word meanings.
